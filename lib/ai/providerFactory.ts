@@ -17,11 +17,16 @@ export async function generateAiInsights(input: AiProviderInput): Promise<AiInsi
     return await geminiProvider.generateInsights(input);
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Gemini provider failed.";
+    console.error("AI provider failed, falling back to mock:", {
+      provider: "gemini",
+      reason
+    });
 
     try {
       const fallback = await mockAiProvider.generateInsights(input);
       return {
         ...fallback,
+        model: fallback.model || "mock",
         message: "AI coaching is temporarily using fallback mode."
       };
     } catch {

@@ -6,6 +6,7 @@ The AI layer returns an `AiInsights` object:
 type AiInsights = {
   status: "available" | "unavailable";
   provider: "gemini" | "mock" | "none";
+  model?: string;
   message?: string;
   careerCoachSummary: string;
   roleFit: {

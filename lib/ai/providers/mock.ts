@@ -8,6 +8,7 @@ export const mockAiProvider: AiProvider = {
     return {
       status: "available",
       provider: "mock",
+      model: "mock",
       careerCoachSummary:
         "Your resume has a workable ATS foundation. The next improvement is making achievements more measurable and aligning the opening summary with the target role.",
       roleFit: {

@@ -4,6 +4,7 @@ import { safeJsonParse } from "@/lib/text";
 
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 export const DEFAULT_GEMINI_MODELS = [
+  "gemini-3.1-flash-lite",
   "gemma-4-26b-a4b-it",
   "gemma-4-31b-it",
   "gemini-2.5-flash-lite",
@@ -26,11 +27,13 @@ type GeminiResponse = {
 
 export class GeminiRequestError extends Error {
   status?: number;
+  reason: string;
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, reason = message) {
     super(message);
     this.name = "GeminiRequestError";
     this.status = status;
+    this.reason = reason;
   }
 }
 
@@ -93,26 +96,40 @@ async function callGeminiModel(prompt: string, model: string, apiKey: string) {
 
       throw new GeminiRequestError(
         `Gemini request failed with status ${response.status}: ${errorText}`,
-        response.status
+        response.status,
+        `HTTP ${response.status}`
       );
     }
 
     const data = (await response.json()) as GeminiResponse;
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
-      throw new GeminiRequestError("Gemini returned an empty response.");
+      throw new GeminiRequestError("Gemini returned an empty response.", undefined, "empty response");
     }
 
     return text;
   } catch (error) {
     if (error instanceof GeminiRequestError) throw error;
     if (error instanceof Error && error.name === "AbortError") {
-      throw new GeminiRequestError("Gemini request timed out.");
+      throw new GeminiRequestError("Gemini request timed out.", undefined, "timeout");
     }
     throw error;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function getFailureReason(error: unknown) {
+  if (error instanceof GeminiRequestError) return error.reason;
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+function logModelFailure(model: string, error: unknown) {
+  console.error("AI model failed:", {
+    model,
+    reason: getFailureReason(error)
+  });
 }
 
 function buildPrompt({ resumeText, jobDescription, ats }: AiProviderInput) {
@@ -207,10 +224,7 @@ async function callGeminiJson<T>(prompt: string) {
       return { model, parsed };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      console.error("Gemini model failed, trying next model if available:", {
-        model,
-        error: lastError.message
-      });
+      logModelFailure(model, error);
     }
   }
 
@@ -241,13 +255,13 @@ export const geminiProvider: AiProvider = {
           throw new GeminiRequestError("Gemini returned an invalid AI insights schema.");
         }
 
-        return normalized;
+        return {
+          ...normalized,
+          model
+        };
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.error("Gemini model failed, trying next model if available:", {
-          model,
-          error: lastError.message
-        });
+        logModelFailure(model, error);
       }
     }
 

@@ -56,6 +56,7 @@ export type JdOptimization = {
 export type AiInsights = {
   status: "available" | "unavailable";
   provider: "gemini" | "mock" | "none";
+  model?: string;
   message?: string;
   careerCoachSummary: string;
   roleFit: RoleFitAnalysis;
@@ -67,6 +68,15 @@ export type AiInsights = {
 
 export type AnalyzeResponse = ResumeAnalysisResult & {
   aiInsights: AiInsights;
+  savedAnalysisId?: string;
+  aiUsage?: {
+    used: number;
+    limit: number;
+    remaining: number;
+    allowed: boolean;
+    periodStart: string;
+    periodEnd: string;
+  };
 };
 
 export type SemanticAnalyzer = {

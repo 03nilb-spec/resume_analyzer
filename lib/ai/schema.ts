@@ -10,6 +10,7 @@ export function unavailableAiInsights(message: string): AiInsights {
   return {
     status: "unavailable",
     provider: "none",
+    model: "none",
     message,
     careerCoachSummary: "AI insights unavailable. ATS analysis completed successfully.",
     roleFit: emptyRoleFit,
@@ -40,6 +41,7 @@ export function normalizeAiInsights(value: unknown, provider: "gemini" | "mock")
   return {
     status: "available",
     provider,
+    model: typeof source.model === "string" ? source.model : undefined,
     careerCoachSummary: source.careerCoachSummary,
     roleFit: {
       mostSuitableRole:

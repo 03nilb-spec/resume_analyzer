@@ -8,6 +8,8 @@ import {
   FileText,
   Flame,
   Lightbulb,
+  LogIn,
+  LogOut,
   Loader2,
   PenLine,
   Search,
@@ -17,6 +19,8 @@ import {
   WandSparkles,
   XCircle
 } from "lucide-react";
+import Link from "next/link";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { FormEvent, useMemo, useState } from "react";
 import type { AnalyzeResponse, ScoreBreakdown } from "@/lib/types";
 
@@ -91,6 +95,7 @@ function SkillPills({
 }
 
 export default function Home() {
+  const { data: session, status } = useSession();
   const [resume, setResume] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState("");
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
@@ -144,6 +149,36 @@ export default function Home() {
               <p className="eyebrow">ATS Analyzer</p>
               <h1>Resume Analyzer</h1>
             </div>
+          </div>
+
+          <div className="auth-panel">
+            {status === "authenticated" ? (
+              <>
+                <div>
+                  <p className="eyebrow">Signed in</p>
+                  <p className="auth-name">{session.user?.name || session.user?.email}</p>
+                </div>
+                <div className="auth-actions">
+                  <Link className="secondary-button" href="/dashboard">
+                    Dashboard
+                  </Link>
+                  <button className="icon-button" type="button" onClick={() => signOut()}>
+                    <LogOut size={17} aria-hidden="true" />
+                    <span>Sign out</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="muted">
+                  Basic ATS analysis is public. Sign in with Google for AI coaching and saved history.
+                </p>
+                <button className="secondary-button" type="button" onClick={() => signIn("google")}>
+                  <LogIn size={17} aria-hidden="true" />
+                  Sign in with Google
+                </button>
+              </>
+            )}
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -249,14 +284,27 @@ export default function Home() {
                   <h2>AI Career Coach</h2>
                   <p className="muted">
                     {result.aiInsights.status === "available"
-                      ? `Powered by ${result.aiInsights.provider}`
+                      ? `Powered by ${result.aiInsights.model || result.aiInsights.provider}`
                       : "ATS analysis completed successfully"}
                   </p>
                 </div>
               </div>
               <p>{result.aiInsights.careerCoachSummary}</p>
               {result.aiInsights.message ? <p className="muted">{result.aiInsights.message}</p> : null}
+              {result.aiUsage ? (
+                <p className="usage-note">
+                  Monthly AI usage: {result.aiUsage.used}/{result.aiUsage.limit}
+                </p>
+              ) : null}
             </section>
+
+            {result.savedAnalysisId ? (
+              <section className="panel section-panel saved-panel">
+                <CheckCircle2 size={19} aria-hidden="true" />
+                <span>Saved to your history.</span>
+                <Link href={`/dashboard/analyses/${result.savedAnalysisId}`}>Open analysis</Link>
+              </section>
+            ) : null}
 
             {result.aiInsights.status === "available" ? (
               <>
