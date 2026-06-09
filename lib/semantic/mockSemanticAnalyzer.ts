@@ -36,12 +36,10 @@ export const mockSemanticAnalyzer: SemanticAnalyzer = {
       actionSignals.filter((signal) => resumeText.toLowerCase().includes(signal))
     ).length;
 
-    const score = Math.round(
-      Math.min(100, lexicalOverlap * 0.45 + skillCoverage * 0.45 + signalCoverage * 3)
-    );
-
     return {
-      score,
+      score: Math.round(
+        Math.min(100, lexicalOverlap * 0.45 + skillCoverage * 0.45 + signalCoverage * 3)
+      ),
       signals: [
         `${Math.round(lexicalOverlap)}% wording overlap`,
         `${Math.round(skillCoverage)}% skill-context coverage`,

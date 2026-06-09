@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { generateAiInsights } from "@/lib/ai/providerFactory";
 import { analyzeResume } from "@/lib/analyzer";
 import { parseResumeFile } from "@/lib/parseResume";
 
@@ -15,12 +16,15 @@ export async function POST(request: Request) {
     }
 
     const parsedText = await parseResumeFile(resume);
-    const analysis = await analyzeResume(
-      parsedText,
-      typeof jobDescription === "string" ? jobDescription : ""
-    );
+    const jdText = typeof jobDescription === "string" ? jobDescription : "";
+    const ats = await analyzeResume(parsedText, jdText);
+    const aiInsights = await generateAiInsights({
+      resumeText: parsedText,
+      jobDescription: jdText,
+      ats
+    });
 
-    return NextResponse.json(analysis);
+    return NextResponse.json({ ...ats, aiInsights });
   } catch (error) {
     const message =
       error instanceof Error

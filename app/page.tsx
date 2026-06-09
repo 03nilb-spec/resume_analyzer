@@ -3,17 +3,22 @@
 import {
   AlertCircle,
   BarChart3,
+  Brain,
   CheckCircle2,
   FileText,
+  Flame,
   Lightbulb,
   Loader2,
+  PenLine,
   Search,
   Sparkles,
+  Target,
   Upload,
+  WandSparkles,
   XCircle
 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
-import type { ResumeAnalysisResult, ScoreBreakdown } from "@/lib/types";
+import type { AnalyzeResponse, ScoreBreakdown } from "@/lib/types";
 
 const metrics: Array<{
   key: keyof ScoreBreakdown;
@@ -88,7 +93,7 @@ function SkillPills({
 export default function Home() {
   const [resume, setResume] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState("");
-  const [result, setResult] = useState<ResumeAnalysisResult | null>(null);
+  const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -136,7 +141,7 @@ export default function Home() {
               <Sparkles size={22} aria-hidden="true" />
             </div>
             <div>
-              <p className="eyebrow">Phase 1 ATS Analyzer</p>
+              <p className="eyebrow">ATS Analyzer</p>
               <h1>Resume Analyzer</h1>
             </div>
           </div>
@@ -171,7 +176,7 @@ export default function Home() {
               </div>
               <textarea
                 id="jobDescription"
-                placeholder="Paste the target job description to make the score JD-aware."
+                placeholder="Paste the target job description to unlock JD optimization."
                 value={jobDescription}
                 onChange={(event) => setJobDescription(event.target.value)}
               />
@@ -237,29 +242,140 @@ export default function Home() {
               })}
             </div>
 
+            <section className={`panel section-panel coach-panel ${result.aiInsights.status}`}>
+              <div className="section-heading">
+                <Brain size={21} aria-hidden="true" />
+                <div>
+                  <h2>AI Career Coach</h2>
+                  <p className="muted">
+                    {result.aiInsights.status === "available"
+                      ? `Powered by ${result.aiInsights.provider}`
+                      : "ATS analysis completed successfully"}
+                  </p>
+                </div>
+              </div>
+              <p>{result.aiInsights.careerCoachSummary}</p>
+              {result.aiInsights.message ? <p className="muted">{result.aiInsights.message}</p> : null}
+            </section>
+
+            {result.aiInsights.status === "available" ? (
+              <>
+                <div className="content-grid">
+                  <section className="panel section-panel">
+                    <div className="section-heading">
+                      <Target size={20} aria-hidden="true" />
+                      <h2>Role Fit Analysis</h2>
+                    </div>
+                    <div className="role-fit">
+                      <strong>{result.aiInsights.roleFit.mostSuitableRole}</strong>
+                      <span>{result.aiInsights.roleFit.confidence}% confidence</span>
+                    </div>
+                    <p className="muted">{result.aiInsights.roleFit.reasoning}</p>
+                  </section>
+
+                  <ResultList
+                    title="Resume Strengths"
+                    icon={<CheckCircle2 size={17} color="#0f7b63" aria-hidden="true" />}
+                    items={result.aiInsights.strengths.length > 0 ? result.aiInsights.strengths : result.strengths}
+                    empty="No strengths detected yet."
+                  />
+                </div>
+
+                <section className="panel section-panel">
+                  <div className="section-heading">
+                    <Flame size={20} aria-hidden="true" />
+                    <h2>Top 3 Priority Fixes</h2>
+                  </div>
+                  <div className="fix-grid">
+                    {result.aiInsights.priorityFixes.map((fix) => (
+                      <article className="fix-card" key={fix.title}>
+                        <h3>{fix.title}</h3>
+                        <p>
+                          <strong>Issue:</strong> {fix.issue}
+                        </p>
+                        <p>
+                          <strong>Reason:</strong> {fix.reason}
+                        </p>
+                        <p>
+                          <strong>Impact:</strong> {fix.expectedImpact}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="panel section-panel">
+                  <div className="section-heading">
+                    <PenLine size={20} aria-hidden="true" />
+                    <h2>Resume Rewrite Suggestions</h2>
+                  </div>
+                  <div className="rewrite-grid">
+                    {result.aiInsights.rewriteSuggestions.map((rewrite) => (
+                      <article className="rewrite-card" key={rewrite.section}>
+                        <h3>{rewrite.section}</h3>
+                        <p className="muted">Current: {rewrite.current}</p>
+                        <p>
+                          <strong>Suggested:</strong> {rewrite.suggested}
+                        </p>
+                        <p className="muted">{rewrite.rationale}</p>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+
+                {result.aiInsights.jdOptimization ? (
+                  <section className="panel section-panel">
+                    <div className="section-heading">
+                      <WandSparkles size={20} aria-hidden="true" />
+                      <h2>JD Optimization</h2>
+                    </div>
+                    <div className="content-grid compact">
+                      <SkillPills
+                        title="Must-Have Skills"
+                        skills={result.aiInsights.jdOptimization.mustHaveSkills}
+                        empty="No must-have skills extracted."
+                      />
+                      <SkillPills
+                        title="JD Missing Skills"
+                        skills={result.aiInsights.jdOptimization.missingSkills}
+                        empty="No JD-specific missing skills detected."
+                        missing
+                      />
+                      <ResultList
+                        title="Experience Gaps"
+                        icon={<AlertCircle size={17} color="#b42318" aria-hidden="true" />}
+                        items={result.aiInsights.jdOptimization.experienceGaps}
+                        empty="No experience gaps detected."
+                      />
+                      <ResultList
+                        title="Optimization Suggestions"
+                        icon={<Lightbulb size={17} color="#d97706" aria-hidden="true" />}
+                        items={result.aiInsights.jdOptimization.optimizationSuggestions}
+                        empty="No JD optimization suggestions available."
+                      />
+                    </div>
+                  </section>
+                ) : null}
+              </>
+            ) : null}
+
             <div className="content-grid">
               <SkillPills
-                title="Matched Skills"
+                title="ATS Matched Skills"
                 skills={result.matchedSkills}
                 empty="No clear skill matches were detected yet."
               />
               <SkillPills
-                title="Missing Skills"
+                title="ATS Missing Skills"
                 skills={result.missingSkills}
                 empty="No JD-specific missing skills detected."
                 missing
               />
               <ResultList
-                title="Suggestions"
+                title="ATS Suggestions"
                 icon={<Lightbulb size={17} color="#d97706" aria-hidden="true" />}
                 items={result.suggestions}
                 empty="No suggestions available."
-              />
-              <ResultList
-                title="Resume Strengths"
-                icon={<CheckCircle2 size={17} color="#0f7b63" aria-hidden="true" />}
-                items={result.strengths}
-                empty="Upload a stronger text-based resume to detect strengths."
               />
               <ResultList
                 title="Formatting Issues"
@@ -281,10 +397,10 @@ export default function Home() {
                 {isLoading ? <Loader2 size={28} aria-hidden="true" /> : <FileText size={28} aria-hidden="true" />}
               </div>
               <p className="eyebrow">Upload. Paste JD. Analyze.</p>
-              <h2 className="headline">Get an ATS-friendly resume score with precise improvement areas.</h2>
+              <h2 className="headline">Get ATS scoring plus AI career coaching in one dashboard.</h2>
               <p className="muted">
-                The dashboard will show category scores, missing skills, matched skills,
-                formatting feedback, strengths, and practical suggestions.
+                The dashboard will show category scores, role fit, priority fixes, rewrite
+                suggestions, JD optimization, strengths, and formatting feedback.
               </p>
               {error ? <XCircle size={26} color="#b42318" aria-hidden="true" /> : <BarChart3 size={26} color="#0f7b63" aria-hidden="true" />}
             </div>

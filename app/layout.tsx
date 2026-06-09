@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Resume Analyzer",
-  description: "ATS-friendly resume scoring with JD-aware feedback."
+  description: "ATS-friendly resume scoring with AI career coaching."
 };
 
 export default function RootLayout({

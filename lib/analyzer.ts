@@ -1,4 +1,4 @@
-import { SECTION_ALIASES, SKILL_LIBRARY } from "@/lib/skills";
+import { JD_SIGNAL_TERMS, SECTION_ALIASES, SKILL_LIBRARY } from "@/lib/skills";
 import { getSemanticAnalyzer } from "@/lib/semantic";
 import type { ResumeAnalysisResult } from "@/lib/types";
 import { clampScore, containsTerm, normalizeText, tokenize, unique } from "@/lib/text";
@@ -15,6 +15,25 @@ function extractSkills(text: string) {
   return SKILL_LIBRARY.filter((skill) => containsTerm(normalized, skill));
 }
 
+function extractRoleSkillPhrases(text: string) {
+  const normalized = text.toLowerCase().replace(/[-/]+/g, " ");
+  const phrases = [
+    "business intelligence",
+    "business insights",
+    "data backed recommendations",
+    "data collection",
+    "data preparation",
+    "decision making",
+    "key performance indicators",
+    "metrics",
+    "performance indicators",
+    "process optimization",
+    "raw data",
+    "reporting processes"
+  ];
+
+  return phrases.filter((phrase) => containsTerm(normalized, phrase));
+}
 function extractImportantTerms(text: string) {
   const stopWords = new Set([
     "and",
@@ -33,7 +52,10 @@ function extractImportantTerms(text: string) {
     "your",
     "role",
     "work",
-    "team"
+    "team",
+    "candidate",
+    "responsible",
+    "requirements"
   ]);
 
   const counts = new Map<string, number>();
@@ -50,6 +72,17 @@ function extractImportantTerms(text: string) {
     .map(([term]) => term);
 }
 
+function extractJdTargets(jobDescription: string) {
+  if (!jobDescription) return [];
+  const normalized = jobDescription.toLowerCase();
+  const libraryMatches = extractSkills(jobDescription);
+  const signalMatches = JD_SIGNAL_TERMS.filter((term) => containsTerm(normalized, term));
+  const rolePhraseMatches = extractRoleSkillPhrases(jobDescription);
+  const repeatedTerms = extractImportantTerms(jobDescription).filter((term) => term.length > 3);
+
+  return unique([...libraryMatches, ...signalMatches, ...rolePhraseMatches, ...repeatedTerms]).slice(0, 24);
+}
+
 function detectSections(text: string) {
   const normalized = text.toLowerCase();
   return Object.entries(SECTION_ALIASES)
@@ -57,10 +90,10 @@ function detectSections(text: string) {
     .map(([section]) => section);
 }
 
-function scoreKeywords(resumeSkills: string[], targetSkills: string[], resumeText: string) {
-  if (targetSkills.length > 0) {
-    const matched = resumeSkills.filter((skill) => targetSkills.includes(skill));
-    return clampScore((matched.length / targetSkills.length) * 100 || 1);
+function scoreKeywords(resumeText: string, resumeSkills: string[], targetTerms: string[]) {
+  if (targetTerms.length > 0) {
+    const matched = targetTerms.filter((term) => containsTerm(resumeText.toLowerCase(), term));
+    return clampScore((matched.length / targetTerms.length) * 100 || 1);
   }
 
   const breadthScore = Math.min(75, resumeSkills.length * 8);
@@ -138,7 +171,7 @@ function buildSuggestions(input: {
 
   if (input.missingSkills.length > 0) {
     suggestions.push(
-      `Add evidence for these target skills where truthful: ${input.missingSkills
+      `Add evidence for these JD requirements where truthful: ${input.missingSkills
         .slice(0, 5)
         .join(", ")}.`
     );
@@ -186,23 +219,24 @@ export async function analyzeResume(
     throw new Error("The resume text is too short to analyze. Please upload a text-based PDF or DOCX.");
   }
 
-  const resumeSkills = extractSkills(resumeText);
-  const jdSkills = extractSkills(jobDescription);
-  const targetTerms = jobDescription ? extractImportantTerms(jobDescription) : [];
+  const resumeSkills = unique([...extractSkills(resumeText), ...extractRoleSkillPhrases(resumeText)]);
+  const targetTerms = extractJdTargets(jobDescription);
   const sections = detectSections(resumeText);
-  const targetSkills = jdSkills.length > 0 ? jdSkills : [];
   const matchedSkills =
-    targetSkills.length > 0
-      ? resumeSkills.filter((skill) => targetSkills.includes(skill))
+    targetTerms.length > 0
+      ? targetTerms.filter((term) => containsTerm(resumeText.toLowerCase(), term))
       : resumeSkills;
-  const missingSkills = targetSkills.filter((skill) => !resumeSkills.includes(skill));
+  const missingSkills =
+    targetTerms.length > 0
+      ? targetTerms.filter((term) => !containsTerm(resumeText.toLowerCase(), term))
+      : [];
 
-  const keywordScore = scoreKeywords(resumeSkills, targetSkills, resumeText);
+  const keywordScore = scoreKeywords(resumeText, resumeSkills, targetTerms);
   const semantic = await getSemanticAnalyzer().compare({
     resumeText,
     jobDescription,
     resumeSkills,
-    targetSkills: targetSkills.length > 0 ? targetSkills : targetTerms
+    targetSkills: targetTerms
   });
   const experienceScore = scoreExperience(resumeText, Boolean(jobDescription));
   const formatting = scoreFormatting(resumeText, sections);

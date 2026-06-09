@@ -27,3 +27,17 @@ export function containsTerm(text: string, term: string) {
   const flexible = escaped.replace(/\\ /g, "\\s+");
   return new RegExp(`(^|[^a-z0-9+#.])${flexible}([^a-z0-9+#.]|$)`, "i").test(text);
 }
+
+export function safeJsonParse<T>(value: string): T | null {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    const match = value.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      return JSON.parse(match[0]) as T;
+    } catch {
+      return null;
+    }
+  }
+}

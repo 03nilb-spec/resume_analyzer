@@ -1,7 +1,7 @@
 {
   "name": "resume_analyser",
-  "version": "1.0.0",
-  "description": "Phase 1 ATS-friendly resume analyzer for job seekers.",
+  "version": "2.0.0",
+  "description": "ATS-friendly resume analyzer with Gemini-powered coaching insights.",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,12 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": [],
+  "keywords": [
+    "resume",
+    "ats",
+    "gemini",
+    "career"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {

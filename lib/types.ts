@@ -24,6 +24,51 @@ export type ResumeAnalysisResult = {
   };
 };
 
+export type RewriteSuggestion = {
+  section: "Professional Summary" | "Experience Section" | "Project Descriptions";
+  current: string;
+  suggested: string;
+  rationale: string;
+};
+
+export type PriorityFix = {
+  title: string;
+  issue: string;
+  reason: string;
+  expectedImpact: string;
+};
+
+export type RoleFitAnalysis = {
+  mostSuitableRole: string;
+  confidence: number;
+  reasoning: string;
+};
+
+export type JdOptimization = {
+  mustHaveSkills: string[];
+  preferredSkills: string[];
+  responsibilities: string[];
+  missingSkills: string[];
+  experienceGaps: string[];
+  optimizationSuggestions: string[];
+};
+
+export type AiInsights = {
+  status: "available" | "unavailable";
+  provider: "gemini" | "mock" | "none";
+  message?: string;
+  careerCoachSummary: string;
+  roleFit: RoleFitAnalysis;
+  priorityFixes: PriorityFix[];
+  rewriteSuggestions: RewriteSuggestion[];
+  jdOptimization: JdOptimization | null;
+  strengths: string[];
+};
+
+export type AnalyzeResponse = ResumeAnalysisResult & {
+  aiInsights: AiInsights;
+};
+
 export type SemanticAnalyzer = {
   compare(input: {
     resumeText: string;
@@ -34,4 +79,15 @@ export type SemanticAnalyzer = {
     score: number;
     signals: string[];
   }>;
+};
+
+export type AiProviderInput = {
+  resumeText: string;
+  jobDescription: string;
+  ats: ResumeAnalysisResult;
+};
+
+export type AiProvider = {
+  name: "gemini" | "mock";
+  generateInsights(input: AiProviderInput): Promise<AiInsights>;
 };

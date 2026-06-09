@@ -65,6 +65,30 @@ export const SKILL_LIBRARY = [
   "writing"
 ] as const;
 
+export const JD_SIGNAL_TERMS = [
+  "power bi",
+  "tableau",
+  "excel",
+  "sql",
+  "python",
+  "dashboard",
+  "reporting",
+  "stakeholder",
+  "forecasting",
+  "financial modeling",
+  "crm",
+  "seo",
+  "campaign",
+  "content",
+  "research",
+  "presentation",
+  "leadership",
+  "communication",
+  "analysis",
+  "automation",
+  "project management"
+] as const;
+
 export const SECTION_ALIASES: Record<string, string[]> = {
   contact: ["email", "phone", "linkedin", "github", "portfolio"],
   summary: ["summary", "profile", "objective", "about"],
