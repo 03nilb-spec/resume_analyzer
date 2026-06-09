@@ -3,7 +3,13 @@ import type { AiProvider, AiProviderInput } from "@/lib/types";
 import { safeJsonParse } from "@/lib/text";
 
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
-export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+export const DEFAULT_GEMINI_MODELS = [
+  "gemma-4-26b-a4b-it",
+  "gemma-4-31b-it",
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-flash"
+] as const;
+export const DEFAULT_GEMINI_MODEL = DEFAULT_GEMINI_MODELS[0];
 const TIMEOUT_MS = 12000;
 const RESUME_CHAR_LIMIT = 6500;
 const JD_CHAR_LIMIT = 3000;
@@ -35,18 +41,24 @@ function truncateForGemini(text: string, limit: number) {
 }
 
 export function getGeminiModel() {
-  return process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+  return getGeminiModels()[0] || DEFAULT_GEMINI_MODEL;
 }
 
-async function callGeminiText(prompt: string) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new GeminiRequestError("GEMINI_API_KEY is not configured.");
-  }
+export function getGeminiModelLabel() {
+  return getGeminiModels().join(" -> ");
+}
 
+function getGeminiModels() {
+  const configured = process.env.GEMINI_MODEL_PRIORITY?.split(",")
+    .map((model) => model.trim())
+    .filter(Boolean);
+
+  return configured && configured.length > 0 ? configured : [...DEFAULT_GEMINI_MODELS];
+}
+
+async function callGeminiModel(prompt: string, model: string, apiKey: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const model = getGeminiModel();
 
   try {
     const response = await fetch(`${GEMINI_ENDPOINT}/${model}:generateContent`, {
@@ -71,8 +83,16 @@ async function callGeminiText(prompt: string) {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+
+      console.error("Gemini error:", {
+        status: response.status,
+        model,
+        body: errorText
+      });
+
       throw new GeminiRequestError(
-        `Gemini request failed with status ${response.status}.`,
+        `Gemini request failed with status ${response.status}: ${errorText}`,
         response.status
       );
     }
@@ -154,29 +174,83 @@ ${truncatedJd}
 }
 
 export async function testGeminiPrompt() {
-  const text = await callGeminiText('Return JSON only: {"status":"ok","message":"Gemini test successful"}');
-  const parsed = safeJsonParse<{ status?: string; message?: string }>(text);
+  const result = await callGeminiJson<{ status?: string; message?: string }>(
+    'Return JSON only: {"status":"ok","message":"Gemini test successful"}'
+  );
 
-  if (!parsed || parsed.status !== "ok") {
+  if (result.parsed.status !== "ok") {
     throw new GeminiRequestError("Gemini test returned an invalid response.");
   }
 
   return {
-    model: getGeminiModel(),
-    message: parsed.message || "Gemini test successful"
+    model: result.model,
+    message: result.parsed.message || "Gemini test successful"
   };
+}
+
+async function callGeminiJson<T>(prompt: string) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new GeminiRequestError("GEMINI_API_KEY is not configured.");
+  }
+
+  let lastError: Error | undefined;
+
+  for (const model of getGeminiModels()) {
+    try {
+      const text = await callGeminiModel(prompt, model, apiKey);
+      const parsed = safeJsonParse<T>(text);
+      if (!parsed) {
+        throw new GeminiRequestError("Gemini returned invalid JSON.");
+      }
+
+      return { model, parsed };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error("Gemini model failed, trying next model if available:", {
+        model,
+        error: lastError.message
+      });
+    }
+  }
+
+  throw lastError || new GeminiRequestError("All Gemini models are unavailable.");
 }
 
 export const geminiProvider: AiProvider = {
   name: "gemini",
   async generateInsights(input: AiProviderInput) {
-    const text = await callGeminiText(buildPrompt(input));
-    const parsed = safeJsonParse<unknown>(text);
-    const normalized = normalizeAiInsights(parsed, "gemini");
-    if (!normalized) {
-      throw new GeminiRequestError("Gemini returned an invalid AI insights schema.");
+    const prompt = buildPrompt(input);
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new GeminiRequestError("GEMINI_API_KEY is not configured.");
     }
 
-    return normalized;
+    let lastError: Error | undefined;
+
+    for (const model of getGeminiModels()) {
+      try {
+        const text = await callGeminiModel(prompt, model, apiKey);
+        const parsed = safeJsonParse<unknown>(text);
+        if (!parsed) {
+          throw new GeminiRequestError("Gemini returned invalid JSON.");
+        }
+
+        const normalized = normalizeAiInsights(parsed, "gemini");
+        if (!normalized) {
+          throw new GeminiRequestError("Gemini returned an invalid AI insights schema.");
+        }
+
+        return normalized;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.error("Gemini model failed, trying next model if available:", {
+          model,
+          error: lastError.message
+        });
+      }
+    }
+
+    throw lastError || new GeminiRequestError("All Gemini models are unavailable.");
   }
 };

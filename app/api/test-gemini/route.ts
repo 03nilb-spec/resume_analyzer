@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGeminiModel, testGeminiPrompt } from "@/lib/ai/providers/gemini";
+import { getGeminiModelLabel, testGeminiPrompt } from "@/lib/ai/providers/gemini";
 
 export const runtime = "nodejs";
 
@@ -17,7 +17,7 @@ export async function GET() {
       {
         ok: false,
         provider: "gemini",
-        model: getGeminiModel(),
+        model: getGeminiModelLabel(),
         error: error instanceof Error ? error.message : "Gemini test failed."
       },
       { status: 502 }

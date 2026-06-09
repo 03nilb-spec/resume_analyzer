@@ -30,4 +30,4 @@ Resume text is truncated to 6,500 characters and job description text is truncat
 
 ## Rate Limit Handling
 
-During free-tier testing the app sends only one Gemini request per analysis and does not retry automatically. A 429 response is treated as a quota/rate-limit signal; ATS scoring remains visible and fallback coaching is shown locally.
+Gemma 4 models are called through the same Gemini API endpoint. During testing the app sends at most one request per real model and does not retry the same model repeatedly. Priority order is `gemma-4-26b-a4b-it` -> `gemma-4-31b-it` -> `gemini-2.5-flash-lite` -> `gemini-2.5-flash`. If all real models fail, mock fallback is used. Technical API errors are logged on the server; users only see fallback-mode messaging.
