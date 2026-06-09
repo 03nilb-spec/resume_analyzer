@@ -18,6 +18,16 @@ type GeminiResponse = {
   }>;
 };
 
+export class GeminiRequestError extends Error {
+  status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "GeminiRequestError";
+    this.status = status;
+  }
+}
+
 function truncateForGemini(text: string, limit: number) {
   const normalized = text.trim();
   if (normalized.length <= limit) return normalized;
@@ -31,7 +41,7 @@ export function getGeminiModel() {
 async function callGeminiText(prompt: string) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured.");
+    throw new GeminiRequestError("GEMINI_API_KEY is not configured.");
   }
 
   const controller = new AbortController();
@@ -61,16 +71,25 @@ async function callGeminiText(prompt: string) {
     });
 
     if (!response.ok) {
-      throw new Error(`Gemini request failed with status ${response.status}.`);
+      throw new GeminiRequestError(
+        `Gemini request failed with status ${response.status}.`,
+        response.status
+      );
     }
 
     const data = (await response.json()) as GeminiResponse;
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
-      throw new Error("Gemini returned an empty response.");
+      throw new GeminiRequestError("Gemini returned an empty response.");
     }
 
     return text;
+  } catch (error) {
+    if (error instanceof GeminiRequestError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new GeminiRequestError("Gemini request timed out.");
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -139,7 +158,7 @@ export async function testGeminiPrompt() {
   const parsed = safeJsonParse<{ status?: string; message?: string }>(text);
 
   if (!parsed || parsed.status !== "ok") {
-    throw new Error("Gemini test returned an invalid response.");
+    throw new GeminiRequestError("Gemini test returned an invalid response.");
   }
 
   return {
@@ -155,7 +174,7 @@ export const geminiProvider: AiProvider = {
     const parsed = safeJsonParse<unknown>(text);
     const normalized = normalizeAiInsights(parsed, "gemini");
     if (!normalized) {
-      throw new Error("Gemini returned an invalid AI insights schema.");
+      throw new GeminiRequestError("Gemini returned an invalid AI insights schema.");
     }
 
     return normalized;

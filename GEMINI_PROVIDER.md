@@ -27,3 +27,7 @@ Use /api/test-gemini to send a tiny Gemini prompt and verify the configured mode
 ## Request Size Control
 
 Resume text is truncated to 6,500 characters and job description text is truncated to 3,000 characters before Gemini requests. ATS analysis still uses the full parsed resume text.
+
+## Rate Limit Handling
+
+During free-tier testing the app sends only one Gemini request per analysis and does not retry automatically. A 429 response is treated as a quota/rate-limit signal; ATS scoring remains visible and fallback coaching is shown locally.

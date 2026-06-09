@@ -17,3 +17,11 @@ If the selected provider fails, the factory returns an unavailable AI payload in
 
 - `GEMINI_API_KEY`: required for real Gemini insights.
 - `GEMINI_MODEL`: optional, defaults to `gemini-2.5-flash`.
+
+## Free-Tier Rate Limit Protection
+
+- Default model is gemini-2.5-flash because this project has active free-tier quota for Gemini 2.5 Flash only.
+- Do not use gemini-1.5-flash, gemini-2.0-flash, or gemini-2.0-flash-lite for this project.
+- Each resume analysis makes at most one Gemini request.
+- No automatic retries run during free-tier testing.
+- If Gemini returns 429, the dashboard keeps the local ATS result and shows fallback coaching.
