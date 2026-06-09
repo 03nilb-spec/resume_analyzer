@@ -19,3 +19,11 @@ Gemini failure returns:
 `AI insights unavailable. ATS analysis completed successfully.`
 
 The ATS score, breakdown, missing skills, matched skills, formatting analysis, and ATS suggestions still render.
+
+## Test Endpoint
+
+Use /api/test-gemini to send a tiny Gemini prompt and verify the configured model/API key without uploading a resume.
+
+## Request Size Control
+
+Resume text is truncated to 6,500 characters and job description text is truncated to 3,000 characters before Gemini requests. ATS analysis still uses the full parsed resume text.
