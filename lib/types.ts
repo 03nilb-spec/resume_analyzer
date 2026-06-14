@@ -68,6 +68,11 @@ export type AiInsights = {
 
 export type AnalyzeResponse = ResumeAnalysisResult & {
   aiInsights: AiInsights;
+  plan: "free" | "premium";
+  aiAccess: {
+    state: "available" | "login_required" | "limit_reached" | "fallback" | "unavailable";
+    isPremium: boolean;
+  };
   savedAnalysisId?: string;
   aiUsage?: {
     used: number;
@@ -77,6 +82,33 @@ export type AnalyzeResponse = ResumeAnalysisResult & {
     periodStart: string;
     periodEnd: string;
   };
+};
+
+export type ResumeRewriteSection = {
+  section: "Summary" | "Experience" | "Projects" | "Skills";
+  current: string;
+  improved: string;
+  rationale: string;
+};
+
+export type ResumeRewriteResult = {
+  status: "available" | "unavailable";
+  provider: "gemini" | "mock" | "none";
+  model?: string;
+  message?: string;
+  improvedResume: string;
+  atsOptimizedContent: string[];
+  sectionRewrites: ResumeRewriteSection[];
+  missingKeywords: string[];
+  betterResumeBullets: string[];
+  atsImprovements: string[];
+  aiSuggestions: string[];
+};
+
+export type ResumeRewriteResponse = {
+  plan: "free" | "premium";
+  isPremium: boolean;
+  rewrite: ResumeRewriteResult;
 };
 
 export type SemanticAnalyzer = {

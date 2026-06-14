@@ -36,11 +36,13 @@ export async function POST(request: Request) {
     const userId = await getOptionalUserId();
     let aiInsights: AiInsights;
     let aiUsage: AnalyzeResponse["aiUsage"];
+    let aiAccessState: AnalyzeResponse["aiAccess"]["state"];
 
     if (!userId) {
       aiInsights = unavailableAiInsights(
-        "Sign in with Google to unlock AI coaching and saved analysis history."
+        "Sign in to get personalized resume feedback, job-specific suggestions, resume improvement tips, and saved analysis history."
       );
+      aiAccessState = "login_required";
     } else {
       try {
         const usage = await getMonthlyAiUsage(userId);
@@ -48,8 +50,9 @@ export async function POST(request: Request) {
 
         if (!usage.allowed) {
           aiInsights = unavailableAiInsights(
-            "You have used your 3 free AI analyses this month. Local ATS analysis is still available."
+            "You have used all 3 free AI analyses this month. Upgrade to Premium to continue with AI analysis."
           );
+          aiAccessState = "limit_reached";
         } else {
           aiInsights = await generateAiInsights({
             resumeText: parsedText,
@@ -62,18 +65,30 @@ export async function POST(request: Request) {
             remaining: Math.max(0, usage.remaining - 1),
             allowed: usage.used + 1 < usage.limit
           };
+          aiAccessState =
+            aiInsights.provider === "mock" && aiInsights.message
+              ? "fallback"
+              : aiInsights.status === "available"
+                ? "available"
+                : "unavailable";
         }
       } catch (error) {
         console.error("AI usage check failed; returning ATS-only analysis:", error);
         aiInsights = unavailableAiInsights(
           "AI coaching is temporarily unavailable. Local ATS analysis completed successfully."
         );
+        aiAccessState = "unavailable";
       }
     }
 
     const responsePayload: AnalyzeResponse = {
       ...ats,
       aiInsights,
+      plan: "free",
+      aiAccess: {
+        state: aiAccessState,
+        isPremium: false
+      },
       ...(aiUsage ? { aiUsage } : {})
     };
 

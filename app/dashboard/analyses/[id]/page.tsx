@@ -3,7 +3,16 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { CSSProperties } from "react";
 import { auth } from "@/auth";
+import { DeleteAnalysisButton } from "@/app/dashboard/DeleteAnalysisButton";
 import { getSavedAnalysisDetail } from "@/lib/history";
+import type { AnalyzeResponse } from "@/lib/types";
+
+const detailMetrics = [
+  { key: "keyword", label: "Keyword Match" },
+  { key: "semantic", label: "Semantic Similarity" },
+  { key: "experience", label: "Experience Relevance" },
+  { key: "formatting", label: "Formatting" }
+] as const;
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en", {
@@ -13,6 +22,12 @@ function formatDate(value: string) {
     hour: "numeric",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function getAiStatusLabel(analysis: AnalyzeResponse) {
+  if (analysis.aiInsights.status === "unavailable") return "Unavailable";
+  if (analysis.aiAccess?.state === "fallback" || analysis.aiInsights.provider === "mock") return "Fallback";
+  return "Real AI";
 }
 
 export default async function AnalysisDetailPage({
@@ -31,14 +46,19 @@ export default async function AnalysisDetailPage({
   if (!saved) notFound();
 
   const analysis = saved.analysis;
+  const isPremium = analysis.aiAccess?.isPremium === true;
+  const aiStatus = getAiStatusLabel(analysis);
 
   return (
     <main className="app-shell">
       <section className="dashboard-shell">
-        <Link className="back-link" href="/dashboard">
-          <ArrowLeft size={17} aria-hidden="true" />
-          Back to dashboard
-        </Link>
+        <div className="detail-actions">
+          <Link className="back-link" href="/dashboard">
+            <ArrowLeft size={17} aria-hidden="true" />
+            Back to dashboard
+          </Link>
+          <DeleteAnalysisButton analysisId={saved.id} redirectToDashboard />
+        </div>
 
         <div className="panel hero-panel">
           <div className="score-ring" style={{ "--score-angle": `${(analysis.score / 100) * 360}deg` } as CSSProperties}>
@@ -55,17 +75,40 @@ export default async function AnalysisDetailPage({
         </div>
 
         <div className="metric-grid">
-          {Object.entries(analysis.breakdown).map(([label, score]) => (
-            <article className="panel metric" key={label}>
+          <article className="panel metric stat-card">
+            <span>ATS Score</span>
+            <strong>{analysis.score}</strong>
+          </article>
+          <article className="panel metric stat-card">
+            <span>Created Date</span>
+            <strong>{formatDate(saved.createdAt)}</strong>
+          </article>
+          <article className="panel metric stat-card">
+            <span>AI Model Used</span>
+            <strong>{analysis.aiInsights.model || saved.aiModelUsed || "none"}</strong>
+          </article>
+          <article className="panel metric stat-card">
+            <span>AI Coaching Status</span>
+            <strong>{aiStatus}</strong>
+          </article>
+        </div>
+
+        <div className="metric-grid">
+          {detailMetrics.map((metric) => {
+            const score = analysis.breakdown[metric.key];
+
+            return (
+              <article className="panel metric" key={metric.key}>
               <div className="metric-top">
-                <span>{label}</span>
+                <span>{metric.label}</span>
                 <span className="metric-score">{score}/100</span>
               </div>
               <div className="bar" style={{ "--bar-width": `${score}%` } as CSSProperties}>
                 <span />
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
 
         <section className={`panel section-panel coach-panel ${analysis.aiInsights.status}`}>
@@ -81,26 +124,44 @@ export default async function AnalysisDetailPage({
         </section>
 
         <div className="content-grid">
-          <section className="panel section-panel">
-            <h2>Matched Skills</h2>
-            <div className="pill-row">
-              {analysis.matchedSkills.map((skill) => (
-                <span className="pill" key={skill}>
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </section>
-          <section className="panel section-panel">
-            <h2>Missing Skills</h2>
-            <div className="pill-row">
-              {analysis.missingSkills.map((skill) => (
-                <span className="pill missing" key={skill}>
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </section>
+          {isPremium ? (
+            <>
+              <section className="panel section-panel">
+                <h2>Matched Skills</h2>
+                <div className="pill-row">
+                  {analysis.matchedSkills.map((skill) => (
+                    <span className="pill" key={skill}>
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </section>
+              <section className="panel section-panel">
+                <h2>Missing Skills</h2>
+                <div className="pill-row">
+                  {analysis.missingSkills.map((skill) => (
+                    <span className="pill missing" key={skill}>
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            </>
+          ) : (
+            <section className="panel section-panel skill-summary-card">
+              <h2>Skill Summary</h2>
+              <div className="summary-counts">
+                <div>
+                  <strong>Matched skills: {analysis.matchedSkills.length}</strong>
+                  <span>Full list available with Premium.</span>
+                </div>
+                <div>
+                  <strong>Missing skills: {analysis.missingSkills.length}</strong>
+                  <span>Keep editing around the biggest gaps.</span>
+                </div>
+              </div>
+            </section>
+          )}
           <section className="panel section-panel">
             <h2>Strengths</h2>
             <ul className="list">

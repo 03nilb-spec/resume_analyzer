@@ -10,9 +10,11 @@ import {
   Lightbulb,
   LogIn,
   LogOut,
+  Lock,
   Loader2,
   PenLine,
   Search,
+  ShoppingCart,
   Sparkles,
   Target,
   Upload,
@@ -27,12 +29,11 @@ import type { AnalyzeResponse, ScoreBreakdown } from "@/lib/types";
 const metrics: Array<{
   key: keyof ScoreBreakdown;
   label: string;
-  weight: string;
 }> = [
-  { key: "keyword", label: "Keyword Match", weight: "40%" },
-  { key: "semantic", label: "Semantic Similarity", weight: "30%" },
-  { key: "experience", label: "Experience Relevance", weight: "20%" },
-  { key: "formatting", label: "Formatting", weight: "10%" }
+  { key: "keyword", label: "Keyword Match" },
+  { key: "semantic", label: "Semantic Similarity" },
+  { key: "experience", label: "Experience Relevance" },
+  { key: "formatting", label: "Formatting" }
 ];
 
 function ResultList({
@@ -92,6 +93,83 @@ function SkillPills({
       )}
     </section>
   );
+}
+
+function SkillSummaryCard({
+  matchedCount,
+  missingCount
+}: {
+  matchedCount: number;
+  missingCount: number;
+}) {
+  return (
+    <section className="panel section-panel skill-summary-card">
+      <h2>Skill Summary</h2>
+      <div className="summary-counts">
+        <div>
+          <strong>Matched skills: {matchedCount}</strong>
+          <span>Full list available with Premium.</span>
+        </div>
+        <div>
+          <strong>Missing skills: {missingCount}</strong>
+          <span>Use counts to guide your next edit.</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AiGateCard({
+  state,
+  usage
+}: {
+  state: AnalyzeResponse["aiAccess"]["state"];
+  usage?: AnalyzeResponse["aiUsage"];
+}) {
+  if (state === "login_required") {
+    return (
+      <section className="panel section-panel premium-card">
+        <div className="section-heading">
+          <Lock size={21} aria-hidden="true" />
+          <h2>Unlock AI Career Coach</h2>
+        </div>
+        <p className="muted">
+          Sign in to get personalized resume feedback, job-specific suggestions, resume
+          improvement tips, and saved analysis history.
+        </p>
+        <button
+          className="primary-button compact-button"
+          type="button"
+          onClick={() => signIn("google", { redirectTo: "/dashboard" })}
+        >
+          <LogIn size={18} aria-hidden="true" />
+          Continue with Google
+        </button>
+      </section>
+    );
+  }
+
+  if (state === "limit_reached") {
+    return (
+      <section className="panel section-panel premium-card">
+        <div className="section-heading">
+          <ShoppingCart size={21} aria-hidden="true" />
+          <h2>You have used all 3 free AI analyses this month.</h2>
+        </div>
+        <p className="muted">Upgrade to Premium to continue with AI analysis.</p>
+        {usage ? (
+          <p className="usage-note">
+            Monthly AI usage: {usage.used}/{usage.limit}
+          </p>
+        ) : null}
+        <Link className="primary-button compact-button" href="/pricing">
+          Buy Premium
+        </Link>
+      </section>
+    );
+  }
+
+  return null;
 }
 
 export default function Home() {
@@ -173,9 +251,13 @@ export default function Home() {
                 <p className="muted">
                   Basic ATS analysis is public. Sign in with Google for AI coaching and saved history.
                 </p>
-                <button className="secondary-button" type="button" onClick={() => signIn("google")}>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => signIn("google", { redirectTo: "/dashboard" })}
+                >
                   <LogIn size={17} aria-hidden="true" />
-                  Sign in with Google
+                  Continue with Google
                 </button>
               </>
             )}
@@ -252,8 +334,7 @@ export default function Home() {
                 <p className="eyebrow">{result.parsedWordCount} words parsed</p>
                 <h2 className="headline">{result.summary}</h2>
                 <p className="muted">
-                  Weighted score: keyword match 40%, semantic similarity 30%, experience
-                  relevance 20%, and formatting 10%.
+                  Review the core ATS score, skill coverage, formatting, and AI coaching status.
                 </p>
               </div>
             </div>
@@ -265,9 +346,7 @@ export default function Home() {
                   <article className="panel metric" key={metric.key}>
                     <div className="metric-top">
                       <span>{metric.label}</span>
-                      <span className="metric-score">
-                        {score}/100 · {metric.weight}
-                      </span>
+                      <span className="metric-score">{score}/100</span>
                     </div>
                     <div className="bar" style={{ "--bar-width": `${score}%` } as React.CSSProperties}>
                       <span />
@@ -277,26 +356,30 @@ export default function Home() {
               })}
             </div>
 
-            <section className={`panel section-panel coach-panel ${result.aiInsights.status}`}>
-              <div className="section-heading">
-                <Brain size={21} aria-hidden="true" />
-                <div>
-                  <h2>AI Career Coach</h2>
-                  <p className="muted">
-                    {result.aiInsights.status === "available"
-                      ? `Powered by ${result.aiInsights.model || result.aiInsights.provider}`
-                      : "ATS analysis completed successfully"}
-                  </p>
+            {result.aiAccess.state === "login_required" || result.aiAccess.state === "limit_reached" ? (
+              <AiGateCard state={result.aiAccess.state} usage={result.aiUsage} />
+            ) : (
+              <section className={`panel section-panel coach-panel ${result.aiInsights.status}`}>
+                <div className="section-heading">
+                  <Brain size={21} aria-hidden="true" />
+                  <div>
+                    <h2>AI Career Coach</h2>
+                    <p className="muted">
+                      {result.aiInsights.status === "available"
+                        ? `Powered by ${result.aiInsights.model || result.aiInsights.provider}`
+                        : "ATS analysis completed successfully"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <p>{result.aiInsights.careerCoachSummary}</p>
-              {result.aiInsights.message ? <p className="muted">{result.aiInsights.message}</p> : null}
-              {result.aiUsage ? (
-                <p className="usage-note">
-                  Monthly AI usage: {result.aiUsage.used}/{result.aiUsage.limit}
-                </p>
-              ) : null}
-            </section>
+                <p>{result.aiInsights.careerCoachSummary}</p>
+                {result.aiInsights.message ? <p className="muted">{result.aiInsights.message}</p> : null}
+                {result.aiUsage ? (
+                  <p className="usage-note">
+                    Monthly AI usage: {result.aiUsage.used}/{result.aiUsage.limit}
+                  </p>
+                ) : null}
+              </section>
+            )}
 
             {result.savedAnalysisId ? (
               <section className="panel section-panel saved-panel">
@@ -408,17 +491,26 @@ export default function Home() {
             ) : null}
 
             <div className="content-grid">
-              <SkillPills
-                title="ATS Matched Skills"
-                skills={result.matchedSkills}
-                empty="No clear skill matches were detected yet."
-              />
-              <SkillPills
-                title="ATS Missing Skills"
-                skills={result.missingSkills}
-                empty="No JD-specific missing skills detected."
-                missing
-              />
+              {result.aiAccess.isPremium ? (
+                <>
+                  <SkillPills
+                    title="ATS Matched Skills"
+                    skills={result.matchedSkills}
+                    empty="No clear skill matches were detected yet."
+                  />
+                  <SkillPills
+                    title="ATS Missing Skills"
+                    skills={result.missingSkills}
+                    empty="No JD-specific missing skills detected."
+                    missing
+                  />
+                </>
+              ) : (
+                <SkillSummaryCard
+                  matchedCount={result.matchedSkills.length}
+                  missingCount={result.missingSkills.length}
+                />
+              )}
               <ResultList
                 title="ATS Suggestions"
                 icon={<Lightbulb size={17} color="#d97706" aria-hidden="true" />}

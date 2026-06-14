@@ -106,7 +106,7 @@ export async function saveResumeAnalysis(input: {
 export async function getDashboardData(userId: string) {
   const pool = requireDbPool();
   const { periodStart, periodEnd } = getMonthlyUsageWindow();
-  const [totalResult, usageResult, historyResult] = await Promise.all([
+  const [totalResult, usageResult, bestScoreResult, historyResult] = await Promise.all([
     pool.query<{ count: string }>(
       "select count(*)::text as count from resume_analyses where user_id = $1",
       [userId]
@@ -121,6 +121,10 @@ export async function getDashboardData(userId: string) {
           and created_at < $3
       `,
       [userId, periodStart, periodEnd]
+    ),
+    pool.query<{ best_score: number | null }>(
+      "select max(ats_score) as best_score from resume_analyses where user_id = $1",
+      [userId]
     ),
     pool.query<AnalysisRow>(
       `
@@ -149,6 +153,9 @@ export async function getDashboardData(userId: string) {
     totalAnalyses: Number(totalResult.rows[0]?.count || 0),
     monthlyAiUsed,
     monthlyAiLimit: FREE_MONTHLY_AI_LIMIT,
+    monthlyAiRemaining: Math.max(0, FREE_MONTHLY_AI_LIMIT - monthlyAiUsed),
+    bestAtsScore: bestScoreResult.rows[0]?.best_score ?? null,
+    latestAtsScore: historyResult.rows[0]?.ats_score ?? null,
     history: historyResult.rows.map(mapSummary)
   };
 }
@@ -184,3 +191,16 @@ export async function getSavedAnalysisDetail(userId: string, analysisId: string)
   };
 }
 
+export async function deleteSavedAnalysis(userId: string, analysisId: string) {
+  const pool = requireDbPool();
+  const result = await pool.query(
+    `
+      delete from resume_analyses
+      where id = $1
+        and user_id = $2
+    `,
+    [analysisId, userId]
+  );
+
+  return result.rowCount === 1;
+}

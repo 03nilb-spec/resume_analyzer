@@ -1,7 +1,9 @@
-import { CalendarDays, FileText, LogOut, Sparkles, Target } from "lucide-react";
+import { BarChart3, CalendarDays, FileText, Sparkles, Target } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
+import { DeleteAnalysisButton } from "@/app/dashboard/DeleteAnalysisButton";
+import { SignOutButton } from "@/app/dashboard/SignOutButton";
 import { getDashboardData } from "@/lib/history";
 
 function formatDate(value: string) {
@@ -21,11 +23,6 @@ export default async function DashboardPage() {
 
   const dashboard = await getDashboardData(session.user.id);
 
-  async function signOutAction() {
-    "use server";
-    await signOut({ redirectTo: "/" });
-  }
-
   return (
     <main className="app-shell">
       <section className="dashboard-shell">
@@ -39,37 +36,38 @@ export default async function DashboardPage() {
             <Link className="secondary-button" href="/">
               New analysis
             </Link>
-            <form action={signOutAction}>
-              <button className="icon-button" type="submit">
-                <LogOut size={17} aria-hidden="true" />
-                Sign out
-              </button>
-            </form>
+            <Link className="secondary-button" href="/rewriter">
+              AI Rewriter
+            </Link>
+            <SignOutButton />
           </div>
         </header>
 
         <div className="metric-grid">
           <article className="panel metric stat-card">
+            <Target size={20} aria-hidden="true" />
+            <span>Best ATS Score</span>
+            <strong>{dashboard.bestAtsScore ?? "-"}</strong>
+          </article>
+          <article className="panel metric stat-card">
+            <BarChart3 size={20} aria-hidden="true" />
+            <span>Latest ATS Score</span>
+            <strong>{dashboard.latestAtsScore ?? "-"}</strong>
+          </article>
+          <article className="panel metric stat-card">
             <FileText size={20} aria-hidden="true" />
-            <span>Total analyses</span>
+            <span>Total Saved Analyses</span>
             <strong>{dashboard.totalAnalyses}</strong>
           </article>
           <article className="panel metric stat-card">
             <Sparkles size={20} aria-hidden="true" />
-            <span>Monthly AI usage</span>
-            <strong>
-              {dashboard.monthlyAiUsed}/{dashboard.monthlyAiLimit}
-            </strong>
-          </article>
-          <article className="panel metric stat-card">
-            <Target size={20} aria-hidden="true" />
-            <span>Latest ATS score</span>
-            <strong>{dashboard.history[0]?.atsScore ?? "-"}</strong>
+            <span>AI Analyses Used This Month</span>
+            <strong>{dashboard.monthlyAiUsed}</strong>
           </article>
           <article className="panel metric stat-card">
             <CalendarDays size={20} aria-hidden="true" />
-            <span>Latest analysis</span>
-            <strong>{dashboard.history[0] ? formatDate(dashboard.history[0].createdAt) : "-"}</strong>
+            <span>AI Analyses Remaining This Month</span>
+            <strong>{dashboard.monthlyAiRemaining}</strong>
           </article>
         </div>
 
@@ -81,24 +79,27 @@ export default async function DashboardPage() {
           {dashboard.history.length > 0 ? (
             <div className="history-list">
               {dashboard.history.map((analysis) => (
-                <Link className="history-row" href={`/dashboard/analyses/${analysis.id}`} key={analysis.id}>
-                  <div>
-                    <strong>{analysis.resumeName}</strong>
-                    <span>{analysis.jobTitle || "General analysis"}</span>
-                  </div>
-                  <div>
-                    <strong>{analysis.atsScore}</strong>
-                    <span>ATS score</span>
-                  </div>
-                  <div>
-                    <strong>{analysis.aiModelUsed || "none"}</strong>
-                    <span>AI model</span>
-                  </div>
-                  <div>
-                    <strong>{formatDate(analysis.createdAt)}</strong>
-                    <span>Created</span>
-                  </div>
-                </Link>
+                <div className="history-row" key={analysis.id}>
+                  <Link className="history-main" href={`/dashboard/analyses/${analysis.id}`}>
+                    <div>
+                      <strong>{analysis.resumeName}</strong>
+                      <span>{analysis.jobTitle || "General analysis"}</span>
+                    </div>
+                    <div>
+                      <strong>{analysis.atsScore}</strong>
+                      <span>ATS score</span>
+                    </div>
+                    <div>
+                      <strong>{analysis.aiModelUsed || "none"}</strong>
+                      <span>AI model</span>
+                    </div>
+                    <div>
+                      <strong>{formatDate(analysis.createdAt)}</strong>
+                      <span>Created</span>
+                    </div>
+                  </Link>
+                  <DeleteAnalysisButton analysisId={analysis.id} />
+                </div>
               ))}
             </div>
           ) : (
@@ -109,4 +110,3 @@ export default async function DashboardPage() {
     </main>
   );
 }
-
